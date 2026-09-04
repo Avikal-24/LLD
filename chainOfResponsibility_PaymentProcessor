@@ -1,0 +1,158 @@
+#include<bits/stdc++.h>
+using namespace std;
+
+class ChangeProcessor;
+class ThousandTray;
+class HundredTray;
+class OneTray;
+class Tray;
+
+class Tray
+{
+    private:
+        Tray* nextTray = nullptr ;
+        
+    public:
+    virtual void transact(int money) = 0 ;
+    
+    void setNext(Tray* nextTray)
+    {
+        this->nextTray = nextTray ;
+    }
+};
+
+class ThousandTray : public Tray
+{
+    private:
+        Tray* nextTray = nullptr ;
+        
+    public:
+    ThousandTray(Tray* nextTray)
+    {
+        this->nextTray = nextTray ;
+    }
+    void transact(int money) override
+    {
+        if(money == 0)
+        {
+            cout<<"transaction alreadt completed\n" ;
+            return ;
+        }
+        if(money >= 1000)
+        {
+            int processMoney= money/1000 * 1000 ; 
+            cout<<processMoney<<" is dispatching";
+            money -= processMoney ;
+        }
+        if(money > 0)
+        {
+            if(nextTray != nullptr)
+            {
+                nextTray->transact(money) ;
+            }
+            else
+            {
+                cout<<money<<" is lost!!!" ;
+            }
+        }
+    }
+
+};
+class HundredTray : public Tray
+{
+    private:
+        Tray* nextTray = nullptr ;
+        
+    public:
+    HundredTray(Tray* nextTray)
+    {
+        this->nextTray = nextTray ;
+    }
+    void transact(int money) override
+    {
+        if(money == 0)
+        {
+            cout<<"transaction alreadt completed\n" ;
+            return ;
+        }
+        if(money >= 100)
+        {
+            int processMoney= money/100 * 100 ; 
+            cout<<processMoney<<" is dispatching";
+            money -= processMoney ;
+        }
+        if(money > 0)
+        {
+            if(nextTray != nullptr)
+            {
+                nextTray->transact(money) ;
+            }
+            else
+            {
+                cout<<money<<" is lost!!!" ;
+            }
+        }
+    }
+
+};
+class OneTray : public Tray
+{
+    private:
+        Tray* nextTray = nullptr ;
+        
+    public:
+    OneTray() = default ;
+    OneTray(Tray* nextTray)
+    {
+        this->nextTray = nextTray ;
+    }
+    void transact(int money) override
+    {
+        if(money == 0)
+        {
+            cout<<"transaction alreadt completed\n" ;
+            return ;
+        }
+        if(money >= 1)
+        {
+            int processMoney= money  ; 
+            cout<<processMoney<<" is dispatching";
+            money -= processMoney ;
+        }
+        if(money > 0)
+        {
+            if(nextTray != nullptr)
+            {
+                nextTray->transact(money) ;
+            }
+            else
+            {
+                cout<<money<<" is lost!!!" ;
+            }
+        }
+    }
+
+};
+
+
+class ChangeProcessor
+{
+    public: 
+    ChangeProcessor() = default ;
+    Tray* one= new OneTray() ;
+    Tray* hundred= new HundredTray(one) ;
+    Tray* thousand= new ThousandTray(hundred) ;
+    
+    void processChange(int money)
+    {
+        thousand->transact(money);
+    }
+};
+
+int main()
+{
+    ChangeProcessor* processor = new ChangeProcessor() ;
+    processor->processChange(1109) ;
+    processor->processChange(508) ;
+    return 0; 
+}
