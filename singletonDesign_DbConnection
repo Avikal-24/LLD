@@ -1,0 +1,38 @@
+#include<bits/stdc++.h>
+using namespace std;
+
+class SingletonDbConnection
+{       
+        // 'inline' is IMP here coz else without it, its just a declaration and nothing in memory-stack.
+        inline static SingletonDbConnection* instance = nullptr ; 
+        SingletonDbConnection() = default ;
+    
+    public:
+        
+            static SingletonDbConnection& getSingletonDbConnection()
+            {
+                if(instance == nullptr)
+                {
+                    // this new() returns a pointer, hence dereferencing it.
+                    instance = new SingletonDbConnection() ;
+                }
+
+                // BUT, if you're derefering it, then either use '&' in return-type to avoid copying of this object, or else pass pointer only.
+                return *instance ;
+            }
+            
+            void connectToDB()
+            {
+                cout<<"DB connected" ;
+            }
+};
+
+
+int main()
+{
+    // to avoid copying what was returned
+    SingletonDbConnection& connection = SingletonDbConnection::getSingletonDbConnection() ;
+    connection.connectToDB() ;
+    
+    return 0 ;
+}
