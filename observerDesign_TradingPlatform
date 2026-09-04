@@ -1,0 +1,69 @@
+#include<bits/stdc++.h>
+using namespace std;
+
+// observables
+class IObservable ;
+class Bitcoin ;
+class Stocks ;
+class Gold ;
+
+// observers
+class IObserver ;
+class TradingBot;
+class Dashboard ;
+class AuditLog ;
+class RiskManagementService ;
+
+class IObservable
+{
+    public:
+        virtual void addObserver(IObserver* observer) = 0 ;
+        virtual void removeObserver(IObserver* observer) = 0 ;
+        virtual void notifyObservers() = 0 ;
+};
+class IObserver
+{
+    public:
+        virtual void update() = 0 ;
+};
+
+class Bitcoin : public IObservable
+{
+    private:
+        vector<IObserver*>observers ;
+        
+    public:
+    
+        void addObserver(IObserver* observer) override
+        {
+            observers.push_back(observer) ;
+        }
+        void removeObserver(IObserver* observer) override
+        {
+            //
+        }
+        void notifyObservers() override
+        {
+            for(auto currObserver:observers)
+            {
+                currObserver->update() ;
+            }
+        }
+    
+};
+
+class TradingBot : public IObserver
+{
+    private:
+    
+    public:
+        void update()
+        {
+            cout<<"TradingBot updated" ;
+        }
+};
+
+int main()
+{
+    return 0 ;
+}
