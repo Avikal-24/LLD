@@ -1,6 +1,11 @@
 #include<bits/stdc++.h>
 using namespace std;
 
+/*
+observers get only the update() function
+observables get addObserver() removeObserver() and notifyObserver() functions
+*/
+
 // observables
 class IObservable ;
 class Bitcoin ;
