@@ -1,0 +1,65 @@
+#include<bits/stdc++.h>
+using namespace std;
+
+class PaymentStrategy
+{
+    public:
+        virtual void pay() = 0 ; 
+};
+
+class CreditCardPayment : public PaymentStrategy
+{
+    public:
+        CreditCardPayment() = default ;
+        void pay() override
+        {
+            cout<<"credit card payment done \n" ;
+        }
+};
+
+class UpiPayment : public PaymentStrategy
+{
+    public:
+        UpiPayment() = default ;
+        void pay() override
+        {
+            cout<<"UPI payment done \n" ;
+        }
+};
+
+class PaymentProcessor
+{
+    PaymentStrategy* strategy = nullptr ;
+    
+    public:
+        PaymentProcessor() = default ;
+        PaymentProcessor(PaymentStrategy* paymentStrategy)
+        {
+            strategy=paymentStrategy ;
+        }
+        
+        void changeStrategy(PaymentStrategy* paymentStrategy)
+        {
+            strategy=paymentStrategy ;
+        }
+        
+        void makePayment()
+        {
+            strategy->pay() ;
+        }
+};
+
+int main()
+{
+    PaymentProcessor* processor = new PaymentProcessor() ;
+    PaymentStrategy* upi = new UpiPayment() ;
+    PaymentStrategy* creditCard = new CreditCardPayment() ;
+    
+    processor->changeStrategy(upi) ;
+    processor->makePayment() ;
+    
+    processor->changeStrategy(creditCard) ;
+    processor->makePayment() ;
+    
+    return 0 ;
+}
