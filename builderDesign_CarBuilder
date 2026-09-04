@@ -1,0 +1,81 @@
+#include<bits/stdc++.h>
+using namespace std;
+
+class Car
+{
+    private:
+        bool sunroof ;
+        string engine ;
+        int seat ;
+        string colour ;
+        
+        Car(){} ; 
+        Car(bool sunroof, string engine, int seat, string colour)
+        {
+            this->sunroof = sunroof ;
+            this->engine = engine ;
+            this->seat = seat ;
+            this->colour = colour ;
+        }
+    
+    public:
+        
+        void printSpecs()
+        {
+            cout<<sunroof<<endl<<engine<<endl<<seat<<endl<<colour<<endl ;
+        }
+    
+    
+    class CarBuilder
+    {
+        private:
+            bool sunroof = false ;
+            string engine = "bs4" ;
+            int seat = 4 ;
+            string colour = "white" ;
+            
+        public:
+        CarBuilder() = default ;
+        
+        // & so to avoid copying of the CarBuilder and returning the same
+        CarBuilder& setSunroof(bool isSunroof)
+        {
+            sunroof=isSunroof ;
+            
+            // 'this' gives a pointer, hence '*' dereferences that pointer and & makes sure the same object is sent back and not its copy
+            return *this ;
+        }
+        CarBuilder& setEngine(string engineName)
+        {
+            engine = engineName ;
+            return *this ;
+        }
+        CarBuilder& setSeat(int seat)
+        {
+            this->seat=seat ;
+            return *this ;
+        }
+        CarBuilder& setColour(string colour)
+        {
+            this->colour = colour ;   
+            return *this ;
+        }
+        
+        Car makeCar()
+        {
+            return Car(sunroof,engine,seat,colour) ;
+        }
+        
+    };
+};
+
+
+
+int main()
+{
+    // :: is for scope resolution
+    Car myCar= Car::CarBuilder().setSunroof(true).setColour("Red").setSeat(7).setEngine("BS6").makeCar() ;
+    myCar.printSpecs() ;
+    
+    return 0 ;
+}
