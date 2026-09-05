@@ -1,0 +1,226 @@
+#include<bits/stdc++.h>
+using namespace std;
+
+// TIC TAC TOE
+
+/*
+
+DESIGN PATTERNS USED:
+- State Design 
+- Facade Design
+- Strategy Design
+- Factory Design
+
+CAN BE USED:
+- Observer Design 
+- Memento Design
+
+*/
+
+class Board ; // done
+class Player ; // done
+class GameRoom ; 
+
+class IPlayerStrategy ;
+class HumanPlayerStrategy ;
+class AiPlayerStrategy  ;
+
+class State ;
+class OngoingState ;
+class DrawState ;
+class WinState ;
+
+class State
+{
+    public:
+        virtual bool isCurrentState(Board * board) = 0 ;
+        virtual State* setNextState(Board *board) = 0 ;
+};
+
+class OngoingState : public State
+{   
+    public:
+        OngoingState() = default ;
+        bool isCurrentState(Board * board) override
+        {
+            // TO DO: check whether current state is unchanged
+            return true ;
+        }
+        State* setNextState(Board *board) override
+        {
+            // TO DO: check board's config and give the next state accordingly.
+            return this ;
+        }
+};
+class DrawState : public State
+{   
+    public:
+        DrawState() = default ;
+        bool isCurrentState(Board * board) override
+        {
+            // TO DO: check whether current state is unchanged
+            return true ;
+        }
+        State* setNextState(Board *board) override
+        {
+            // TO DO: check board's config and give the next state accordingly.
+            return this ;
+        }
+};
+class WinState : public State
+{   
+    public:
+        WinState() = default ;
+        bool isCurrentState(Board * board) override
+        {
+            // TO DO: check whether current state is unchanged
+            return true ;
+        }
+        State* setNextState(Board *board) override
+        {
+            // TO DO: check board's config and give the next state accordingly.
+            return this ;
+        }
+};
+
+
+class Board
+{
+    private:
+        vector<vector<char>>boardState ;
+        
+    public:
+        Board(int boardSize)
+        {
+            boardState = vector<vector<char>>(boardSize,vector<char>(' ',boardSize)) ;
+        }
+        void printBoard()
+        {
+            for(int i=0 ; i<boardState.size() ; i++)
+            {
+                for(int j=0 ; j<boardState.size() ; j++)
+                {
+                    cout<<boardState[i][j]<<" " ;
+                }
+                cout<<endl ;
+                
+            }
+        }
+        void makeMove(int row, int col, char ch)
+        {
+            // TO-DO pre-checks
+            boardState[row][col] = ch ;
+        }
+    
+};
+
+
+class IPlayerStrategy
+{
+    public: 
+    virtual void makeMove(char ch) = 0 ;
+};
+class AiPlayerStrategy : public IPlayerStrategy
+{
+    private:
+        Board* board ;
+    
+    public:
+        AiPlayerStrategy(Board* board)
+        {
+            this->board=board ;
+        }
+        void makeMove(char symbol) override
+        {
+            // TO-DO: DECIDE ROW-COL
+            int row ; int col ;
+            
+            board->makeMove(row,col,symbol) ;
+        }
+} ;
+class HumanPlayerStrategy : public IPlayerStrategy
+{
+    private:
+        Board* board ;
+    
+    public:
+        HumanPlayerStrategy(Board* board)
+        {
+            this->board=board ;
+        }
+        void makeMove(char symbol) override
+        {
+            // TO-DO: DECIDE ROW-COL
+            int row ; int col ;
+            board->makeMove(row,col,symbol) ;
+        }
+} ;
+
+
+class Player
+{
+    private:
+        char symbol ;
+        IPlayerStrategy* strategy = nullptr ;
+        Player() = default ;
+    
+    public:
+        
+        Player(char symbol)
+        {
+            this->symbol = symbol ;
+        }
+        void setStrategy(IPlayerStrategy* strategy)
+        {
+            this->strategy = strategy ;
+        }
+        void makeMove()
+        {
+            strategy->makeMove(symbol) ;
+        }
+        
+};
+
+class PlayerFactory
+{
+    private:
+        unordered_set<char>usedSymbols ;
+    public:
+        PlayerFactory() = default ;
+        Player* createPlayer(char symbol)
+        {
+            if(usedSymbols.find(symbol) != usedSymbols.end()) return nullptr ;
+            usedSymbols.insert(symbol) ; 
+            Player* newPlayer= new Player(symbol) ; 
+            return newPlayer ;
+        }
+};
+
+
+class GameRoom
+{
+    private:
+        Board* board ;
+        inline static PlayerFactory *playerFactory = new PlayerFactory();
+        vector<Player*>players ;
+        int currPlayerIdx = 0 ;
+   
+    public:
+        GameRoom(int boardSize, int numPlayers)
+        {
+            board= new Board(boardSize) ;
+            for(int i=0 ; i<numPlayers ; i++)
+            {
+                char ch ;
+                cin>> ch ; 
+                Player *newPlayer = playerFactory->createPlayer(ch) ;
+                players.push_back(newPlayer) ;
+            }
+        }
+   
+} ;
+
+int main()
+{
+    return 0 ;
+}
