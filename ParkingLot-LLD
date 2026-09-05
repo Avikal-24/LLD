@@ -1,0 +1,220 @@
+#include<bits/stdc++.h>
+using namespace std;
+
+// PARKING LOT 
+
+/*
+
+LLD DESIGNS:
+- factory to create vehicles
+- strategy for payments
+- facade for parking management
+
+CAN BE INCLUDED
+- Singleton for single facade/lot instance.
+- Observer for display board
+
+*/
+
+enum class VehicleSize
+{
+  SMALL, MEDIUM, LARGE, NONE
+};
+
+class IVehicle
+{
+    private:
+        VehicleSize size = VehicleSize::NONE ;
+    public:
+        virtual void park() = 0 ;
+        virtual void unpark() = 0 ;
+        virtual VehicleSize getSize() = 0 ;
+};
+class TwoWheeler : public IVehicle
+{
+    private:
+        VehicleSize size = VehicleSize::SMALL ;
+        
+    public:
+        TwoWheeler() = default ;
+        void park() override
+        {
+            
+        }
+        void unpark() override
+        {
+            
+        }
+        VehicleSize getSize()
+        {
+            return size ;
+        }
+    
+};
+class FourWheeler : public IVehicle
+{
+    private:
+        VehicleSize size = VehicleSize::MEDIUM ;
+        
+    public:
+        FourWheeler() = default ;
+        void park() override
+        {
+            
+        }
+        void unpark() override
+        {
+            
+        }
+        VehicleSize getSize()
+        {
+            return size ;
+        }
+};
+
+class VehicleFactory
+{
+    private:
+    
+    public:
+        VehicleFactory() = default ;
+        IVehicle* getVehicle(string size)
+        {
+            return new TwoWheeler() ;
+        }
+};
+
+class ParkingSlot
+{
+    private:
+        IVehicle* parkedVehicle = nullptr ;
+        VehicleSize slotSize = VehicleSize::SMALL ;
+    
+    public:
+        ParkingSlot() = default ;
+        ParkingSlot(VehicleSize slotSize)
+        {
+            this->slotSize = slotSize ;
+        }
+        void parkVehicle(IVehicle* vehicle)
+        {
+            parkedVehicle=vehicle ;
+        }
+};
+
+class IBillCalculationStrategy
+{
+    public:
+    virtual int calculateBill(int hrs) = 0 ;  
+};
+class WeekendBillPaymentStrategy : public IBillCalculationStrategy
+{
+    public:
+        WeekendBillPaymentStrategy() = default ;
+        int calculateBill(int hours) override
+        {
+            return 20*hours ;
+        }
+}; 
+class WeekdayBillPaymentStrategy : public IBillCalculationStrategy
+{
+    public:
+        WeekdayBillPaymentStrategy() = default ;
+        int calculateBill(int hours) override
+        {
+            return 15*hours ;
+        }
+}; 
+
+class Payment
+{
+    public:
+        virtual void makePayment(int amount) = 0 ;
+};
+class CreditCardPayment : public Payment
+{
+    public:
+        CreditCardPayment() = default ;
+        void makePayment(int amount) override
+        {
+            cout<<"creditcard payment made" ;
+        }
+};
+class UpiPayment : public Payment
+{
+    public:
+        UpiPayment() = default ;
+        void makePayment(int amount) override
+        {
+            cout<<"Upi payment made" ;
+        }
+};
+
+class ParkingFacade
+{
+    private:
+        unordered_set<ParkingSlot*>freeSlots ;
+        unordered_set<ParkingSlot*>busySlots ;
+        
+        unordered_map<IVehicle*,ParkingSlot*>vehicleSlotMap ;
+        
+        IBillCalculationStrategy* billCalculationStrategy = nullptr ;
+    
+    public:
+        ParkingFacade()
+        {
+            billCalculationStrategy = new WeekdayBillPaymentStrategy() ;
+        }
+        void addFreeSlot(VehicleSize size)
+        {
+            freeSlots.insert( new ParkingSlot(size) ) ;
+        }
+        void enterVehicle(IVehicle* vehicle)
+        {
+            VehicleSize currVehicleSize = vehicle->getSize() ;
+            ParkingSlot* parkSlot = findFreeSlot(currVehicleSize) ;
+            
+            freeSlots.erase(parkSlot) ; 
+            busySlots.insert(parkSlot) ;
+            
+            vehicle->park() ;
+            
+            vehicleSlotMap[vehicle] = parkSlot ;
+        }
+        void exitVehicle(IVehicle* vehicle)
+        {
+            ParkingSlot* parkSlot = vehicleSlotMap[vehicle] ;
+            
+            vehicle->unpark() ;
+            
+            freeSlots.insert(parkSlot) ; 
+            busySlots.erase(parkSlot) ;
+            
+            vehicleSlotMap.erase(vehicle);
+            
+            int bill = calculateBill(vehicle) ;
+            
+            paybill(bill,vehicle) ;
+        }
+        int calculateBill(IVehicle* vehicle)
+        {
+            return billCalculationStrategy->calculateBill(5) ; // assuming 5 hrs
+        }
+        void changeBillCalculationStrategy(IBillCalculationStrategy* newStrategy )
+        {
+            billCalculationStrategy = newStrategy ;
+        }
+        ParkingSlot* findFreeSlot(VehicleSize size)
+        {
+            // return a free slot of given size;
+        }
+        void paybill(int amount, IVehicle* vehicle)
+        {
+            
+        }
+};
+
+int main()
+{
+    return 0 ;
+}
