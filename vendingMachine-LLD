@@ -1,0 +1,426 @@
+#include<bits/stdc++.h>
+using namespace std;
+
+// concrete classes
+class VendingMachine ; // machine facade
+class VendingMachineSlot ; // slot to hold a product
+class Product ; // actual product inside the machine
+class PaymentProcessor ; // receive user payment and also give back balance.
+class BalancePaymentFetcher ; // to give balance payment back to user.
+
+class State ;
+class SelectionState ;
+class PaymentState ;
+class DispenseState ;
+
+class PaymentStrategy;
+class UpiPaymentStrategy;
+class CashPaymentStrategy;
+
+
+/* LLD principles
+
+IMPLEMENTED
+- facade design for vending machine
+- state design for various states of vending machine
+- strategy design for payment strategies
+- chain of responsibility for BalancePaymentFetcher
+
+CAN BE IMPLEMENTED
+- factory design for product creation
+- observer design for state-change notifications
+- singleton pattern for hardware management
+
+*/
+
+
+class Product
+{
+    private:
+        string name ;
+        int cost ;
+    
+    public:
+        Product(string name, int cost)
+        {
+            this->name = name ; this->cost = cost ;
+        }
+        int getCost()
+        {
+            return cost ;
+        }
+};
+
+class VendingMachineSlot
+{
+    private:
+        string slotId ;
+        Product *storedProduct ;
+        int qty ;
+        
+    public:
+        VendingMachineSlot() = default ;
+        VendingMachineSlot(string slotId , Product *product, int qty)
+        {
+            this->slotId=slotId ; storedProduct = product ; this->qty = qty ;
+        }
+        string getSlotId()
+        {
+            return slotId ;
+        }
+        void dispenseProduct()
+        {
+            qty -- ;
+        }
+        void addProduct(int qty)
+        {
+            this->qty += qty ; // to add product in this slot.
+        }
+        Product* getProduct()
+        {
+            return storedProduct ;
+        }
+};
+
+class State 
+{
+    private:
+    public:
+        virtual State* getNextState() = 0 ;
+        virtual void SetNextState(State * newstate) = 0 ;
+        virtual void execute() = 0 ;
+};
+
+class SelectionState : public State 
+{
+    private:
+        State* nextState = nullptr ;
+        VendingMachine * machine ;
+    public:
+    
+        SelectionState(VendingMachine* machine)
+        {
+            this->machine = machine ;
+        }
+        
+        State* getNextState() override
+        {
+            return nextState ;
+        }
+        void SetNextState(State * newstate) override
+        {
+            this->nextState = newstate ;
+        }
+        void execute() override ; // implemented below
+};
+class PaymentState : public State 
+{
+    private:
+        State* nextState ;
+        VendingMachine * machine ;
+    public:
+    
+        PaymentState(VendingMachine* machine)
+        {
+            this->machine = machine ;
+        }
+        
+        State* getNextState() override
+        {
+            return nextState ;
+        }
+        void SetNextState(State * newstate) override
+        {
+            nextState = newstate ;
+        }
+        void execute() override ; // implemented below
+        
+};
+class DispenseState : public State 
+{
+    private:
+        State* nextState ;
+        VendingMachine * machine ;
+    public:
+    
+        DispenseState(VendingMachine* machine)
+        {
+            this->machine = machine ;
+        }
+        
+        State* getNextState() override
+        {
+            return nextState ;
+        }
+        void SetNextState(State * newstate) override
+        {
+            nextState = newstate ;
+        }
+        void execute() override ; // implemented below
+};
+
+
+class MoneyDispenser
+{
+    public: 
+        virtual void dispense(int amt) = 0 ;  
+        virtual void setNextDispenser(MoneyDispenser* next) = 0 ;
+};
+
+class ThousandMoneyDispenser : public MoneyDispenser
+{
+    private:
+        int denomination=1000 ;
+        MoneyDispenser* nextDispenser ;
+        
+    public:
+        ThousandMoneyDispenser() = default ;
+        void dispense(int amt) override
+        {
+            if(amt>=denomination)
+            {
+                cout<<"dispensing the amount:"<<amt/denomination<<endl ;
+            }
+            amt%=denomination ;
+            if(amt>0 && nextDispenser != nullptr )
+            {
+                nextDispenser->dispense(amt) ;
+            }
+        }
+        void setNextDispenser(MoneyDispenser* next) override
+        {
+            nextDispenser = next;
+        }
+};
+
+class OneMoneyDispenser : public MoneyDispenser
+{
+    private:
+        int denomination=1 ;
+        MoneyDispenser* nextDispenser ;
+        
+    public:
+        OneMoneyDispenser() = default ;
+        void dispense(int amt) override
+        {
+            cout<<"dispensing the remaining amt" ;
+        }
+        void setNextDispenser(MoneyDispenser* next) override
+        {
+            nextDispenser = next;
+        }
+};
+
+class BalancePaymentFetcher
+{
+    private:
+        MoneyDispenser* thousandMoneyDispenser ;
+        MoneyDispenser* oneMoneyDispenser ;
+        
+    public:
+        BalancePaymentFetcher()
+        {
+            thousandMoneyDispenser = new ThousandMoneyDispenser() ;
+            oneMoneyDispenser = new OneMoneyDispenser() ;
+            
+            thousandMoneyDispenser->setNextDispenser(oneMoneyDispenser) ;
+        }
+        void fetch(int amt)
+        {
+            thousandMoneyDispenser->dispense(amt) ;
+        }
+};
+
+class PaymentStrategy
+{
+    public:
+        virtual bool makePayment(int amount) = 0 ;
+};
+
+class UpiPaymentStrategy : public PaymentStrategy
+{
+    private:
+        int amt; 
+        
+    public:
+        UpiPaymentStrategy() = default ;
+        
+        void setAmt(int amt)
+        {
+            this->amt = amt ;
+        }
+        
+        bool makePayment(int amount) override
+        {
+            // some upi payment checkers
+            
+            return true ;
+        }
+};
+
+class CashPaymentStrategy : public PaymentStrategy
+{
+    private:
+        int amt; 
+        BalancePaymentFetcher* balancePaymentFetcher ; 
+        
+    public:
+        CashPaymentStrategy()
+        {
+            balancePaymentFetcher = new BalancePaymentFetcher() ;
+        }
+        
+        void setAmt(int amt)
+        {
+            this->amt = amt ;
+        }
+        
+        bool makePayment(int amount) override
+        {
+            // get cash from user and then check the remainder
+            
+            // say machine needs to give back 59 to user
+            int dispatchAmt = 59 ;
+            
+            if(dispatchAmt>0)
+            {
+                balancePaymentFetcher->fetch(dispatchAmt) ;
+            }
+            
+            return true ;
+        }
+};
+
+class PaymentProcessor
+{
+    private:
+        PaymentStrategy* paymentStrategy ;
+    
+    public:
+        PaymentProcessor() = default ; 
+        
+        void changePaymentStrategy()
+        {
+            // some UI operations:-
+            // .
+            // .
+            // say user tells to pay via cash
+            
+            paymentStrategy = new CashPaymentStrategy() ;
+        }
+        
+        void makePayment(int amt)
+        {
+            // some UI o/p to confirm the payment strategies.
+            
+            bool isCompleted = paymentStrategy->makePayment(amt) ;
+        }
+};
+
+class VendingMachine
+{
+    private:
+        PaymentProcessor *paymentProcessor = nullptr;
+        
+        State* paymentState ;
+        State* selectionState;
+        State* dispenseState;
+        State* currentState = nullptr ;
+        
+        unordered_map<string,VendingMachineSlot*>slotMap ;
+        
+        int bill = 0 ;
+        VendingMachineSlot* selectedSlot = nullptr ; 
+        
+    public:
+        VendingMachine()
+        {
+            paymentProcessor = new PaymentProcessor() ;
+            paymentState = new PaymentState(this) ;
+            dispenseState = new DispenseState(this) ;
+            selectionState = new SelectionState(this) ;
+            
+            selectionState->SetNextState(paymentState) ; 
+            paymentState->SetNextState(dispenseState) ;
+            dispenseState->SetNextState(selectionState) ;
+            
+            
+            currentState = selectionState ;
+        }
+        void addSlot(VendingMachineSlot* slot)
+        {
+            slotMap[slot->getSlotId()] = slot ;
+        }
+        
+        void executeCurrentState()
+        {
+            currentState->execute() ;
+        }
+        State* getState()
+        {
+            return currentState ;
+        }
+        void changeState(State* newState)
+        {
+            currentState = newState ;
+        }
+        
+        void generateBill(string slotName)
+        {
+            selectedSlot= slotMap[slotName] ;
+            Product* product = selectedSlot->getProduct() ;
+            bill = product->getCost() ;
+        }
+        int getBill()
+        {
+            return bill ;
+        }
+        PaymentProcessor* getPaymentProcessor()
+        {
+            return paymentProcessor ;
+        }
+        
+        
+        void setSelectedSlot(VendingMachineSlot* slot)
+        {
+            selectedSlot = slot ;
+        }
+        VendingMachineSlot* getSelectedSlot()
+        {
+            return selectedSlot ;
+        }
+};
+
+// DEFERRED EXECUTION CODE to avoid circular dependency
+
+    void SelectionState::execute() 
+    {
+        /*
+            some selection logics
+        */
+        
+        string selectedSlot = "A1" ; // hardcoding
+        machine->generateBill(selectedSlot) ;
+        
+        // after user's confirmation
+        machine->changeState(nextState) ;
+    }
+    
+    void DispenseState::execute() 
+    {
+        VendingMachineSlot* slot = machine->getSelectedSlot() ;
+        slot->dispenseProduct() ;
+        machine->changeState(nextState) ;
+    }
+    
+    void PaymentState::execute() 
+    {
+        machine->getPaymentProcessor()->makePayment(machine->getBill()) ;
+        machine->changeState(nextState) ;
+    }
+        
+
+int main()
+{
+    return 0 ;
+}
