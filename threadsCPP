@@ -1,0 +1,1002 @@
+1. Java-to-C++ mapping
+
+┌──────────────────────────────┬─────────────────────────────────────────────────────────┐
+│ Java                         │ C++ equivalent                                          │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ Thread                       │ std::thread, preferably std::jthread                    │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ Runnable                     │ Lambda, function, or callable object returning void     │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ Callable<T>                  │ Callable returning T                                    │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ Thread.sleep()               │ std::this_thread::sleep_for()                           │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ Thread.interrupt()           │ std::jthread::request_stop() + std::stop_token          │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ join()                       │ join()                                                  │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ synchronized                 │ std::mutex + std::lock_guard/std::unique_lock           │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ wait/notify/notifyAll        │ std::condition_variable                                 │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ volatile for synchronization │ Use std::atomic, not volatile                           │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ AtomicInteger                │ std::atomic<int>                                        │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ ReentrantLock                │ std::recursive_mutex                                    │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ ReentrantReadWriteLock       │ std::shared_mutex                                       │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ Semaphore                    │ std::counting_semaphore, std::binary_semaphore          │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ CyclicBarrier                │ std::barrier                                            │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ CountDownLatch               │ std::latch                                              │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ Future<T>                    │ std::future<T>                                          │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ Callable + Future            │ std::async, std::packaged_task, std::promise            │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ CompletableFuture            │ No direct standard equivalent                           │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ ExecutorService              │ No standard C++20 equivalent; use a thread pool/library │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ BlockingQueue                │ Queue + mutex + condition variables                     │
+├──────────────────────────────┼─────────────────────────────────────────────────────────┤
+│ ConcurrentHashMap            │ No standard equivalent; map + locks/library             │
+└──────────────────────────────┴─────────────────────────────────────────────────────────┘
+
+────────────────────
+
+2. Threads and Runnable equivalents
+
+Plain callable or lambda
+
+A C++ thread starts immediately when its  std::thread  object is constructed.
+
+#include <chrono>
+#include <iostream>
+#include <thread>
+
+void runTask() {
+    for (int i = 0; i < 5; ++i) {
+        std::cout << "Thread " << std::this_thread::get_id()
+                  << " running: " << i << '\n';
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+}
+
+int main() {
+    std::thread t1(runTask);
+    std::thread t2(runTask);
+
+    t1.join();
+    t2.join();
+}
+
+Always  join()  or  detach()  a  std::thread . Destroying a joinable  std::thread  calls  std::terminate() .
+
+Runnable-style callable object
+
+#include <iostream>
+#include <thread>
+
+class MyRunnable {
+public:
+    void operator()() const {
+        std::cout << "Running on " << std::this_thread::get_id() << '\n';
+    }
+};
+
+int main() {
+    MyRunnable task;
+
+    std::thread t1(task);
+    std::thread t2(task);
+
+    t1.join();
+    t2.join();
+}
+
+ operator()  makes an object callable. Lambdas are usually preferred:
+
+std::thread t([] {
+    std::cout << "Task running\n";
+});
+
+Passing shared state
+
+Pass references explicitly with  std::ref :
+
+#include <functional>
+#include <thread>
+
+void increment(int& value) {
+    ++value;
+}
+
+int main() {
+    int value = 0;
+    std::thread t(increment, std::ref(value));
+    t.join();
+}
+
+This example still requires synchronization if multiple threads access  value .
+
+────────────────────
+
+3. Java  start()  versus  run() 
+
+C++ has no separate  start()  method.
+
+void task() {
+    std::cout << std::this_thread::get_id() << '\n';
+}
+
+int main() {
+    task();                 // Runs in current thread
+    std::thread t(task);    // Starts a new thread immediately
+    t.join();
+}
+
+A completed  std::thread  cannot be restarted. Construct another thread object instead.
+
+────────────────────
+
+4. Exceptions inside threads
+
+An uncaught exception escaping a C++ thread function calls  std::terminate() , potentially ending the entire process.
+
+std::thread worker([] {
+    try {
+        throw std::runtime_error("failure");
+    } catch (const std::exception& error) {
+        std::cerr << error.what() << '\n';
+    }
+});
+worker.join();
+
+To propagate an exception to another thread, use  std::future :
+
+#include <future>
+#include <iostream>
+#include <stdexcept>
+
+int main() {
+    auto result = std::async(std::launch::async, []() -> int {
+        throw std::runtime_error("task failed");
+    });
+
+    try {
+        std::cout << result.get();
+    } catch (const std::exception& error) {
+        std::cout << "Caught: " << error.what() << '\n';
+    }
+}
+
+ get()  rethrows the original exception.
+
+────────────────────
+
+5. Callable and Future
+
+A C++ callable can return any type and throw exceptions.
+
+#include <chrono>
+#include <future>
+#include <string>
+#include <thread>
+
+std::string callable(std::string name) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    return "Completed " + name;
+}
+
+int main() {
+    auto future1 =
+        std::async(std::launch::async, callable, "Task 1");
+
+    auto future2 =
+        std::async(std::launch::async, callable, "Task 2");
+
+    std::cout << future1.get() << '\n';
+    std::cout << future2.get() << '\n';
+}
+
+Always specify  std::launch::async  when asynchronous execution is required. Without it, an implementation may defer execution until  get() .
+
+────────────────────
+
+6. Cooperative interruption with  std::jthread 
+
+C++ does not safely force-stop threads. C++20 provides cooperative cancellation.
+
+#include <chrono>
+#include <iostream>
+#include <stop_token>
+#include <thread>
+
+void worker(std::stop_token token) {
+    while (!token.stop_requested()) {
+        std::cout << "Working...\n";
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    }
+
+    std::cout << "Stopping cleanly\n";
+}
+
+int main() {
+    std::jthread thread(worker);
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    thread.request_stop();
+}
+
+ std::jthread  automatically joins when destroyed.
+
+Unlike Java interruption, ordinary  sleep_for()  and  condition_variable::wait()  do not automatically throw an interruption exception.
+
+────────────────────
+
+7. Synchronization
+
+Synchronized method equivalent
+
+#include <mutex>
+
+class Counter {
+    int count_ = 0;
+    mutable std::mutex mutex_;
+
+public:
+    void increment() {
+        std::lock_guard lock(mutex_);
+        ++count_;
+    }
+
+    int getCount() const {
+        std::lock_guard lock(mutex_);
+        return count_;
+    }
+};
+
+ std::lock_guard  acquires the mutex in its constructor and releases it automatically when the scope ends.
+
+Synchronized block equivalent
+
+void increment() {
+    doPreprocessing();
+
+    {
+        std::lock_guard lock(mutex_);
+        ++count_;
+    }
+
+    doPostprocessing();
+}
+
+Only the inner scope is protected.
+
+Protect reads too
+
+If one thread writes  count_ , unsynchronized reads of  count_  are a data race. Both reads and writes must use the same mutex or an atomic variable.
+
+────────────────────
+
+8.  volatile  versus  std::atomic 
+
+Java  volatile  and C++  volatile  are not equivalent.
+
+C++  volatile  does not provide thread safety, atomicity, or inter-thread visibility guarantees. It is primarily intended for special memory such as memory-mapped hardware.
+
+Use  std::atomic :
+
+#include <atomic>
+#include <thread>
+
+std::atomic<bool> running{true};
+
+void worker() {
+    while (running.load()) {
+        // Work
+    }
+}
+
+int main() {
+    std::thread t(worker);
+
+    running.store(false);
+    t.join();
+}
+
+Atomic counter
+
+#include <atomic>
+#include <thread>
+#include <vector>
+
+int main() {
+    std::atomic<int> counter{0};
+    std::vector<std::thread> threads;
+
+    for (int i = 0; i < 10; ++i) {
+        threads.emplace_back([&] {
+            for (int j = 0; j < 100; ++j) {
+                counter.fetch_add(1);
+                // counter++ is also atomic.
+            }
+        });
+    }
+
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    std::cout << counter.load() << '\n'; // 1000
+}
+
+Atomic operations are suitable for individual values. Use a mutex when multiple variables must satisfy one shared invariant.
+
+Compare-and-swap
+
+std::atomic<int> value{10};
+
+int expected = 10;
+bool changed = value.compare_exchange_strong(expected, 20);
+
+If  value == expected , it becomes  20 . Otherwise,  expected  is updated with the actual value.
+
+────────────────────
+
+9.  sleep()  versus  wait() 
+
+Sleeping
+
+std::this_thread::sleep_for(std::chrono::seconds(2));
+
+Sleeping does not release mutexes already held by the thread.
+
+Condition-variable waiting
+
+#include <condition_variable>
+#include <mutex>
+
+std::mutex mutex;
+std::condition_variable condition;
+bool ready = false;
+
+void waitForWork() {
+    std::unique_lock lock(mutex);
+
+    condition.wait(lock, [] {
+        return ready;
+    });
+
+    // Mutex has been reacquired here.
+}
+
+void signalWork() {
+    {
+        std::lock_guard lock(mutex);
+        ready = true;
+    }
+
+    condition.notify_one();
+}
+
+ wait() :
+
+1. Atomically releases the mutex.
+2. Suspends the thread.
+3. Wakes after notification or a spurious wake-up.
+4. Reacquires the mutex.
+5. Rechecks the predicate.
+
+Mappings:
+
+condition.notify_one(); // Java notify()
+condition.notify_all(); // Java notifyAll()
+
+────────────────────
+
+10. Producer-consumer / blocking queue
+
+#include <condition_variable>
+#include <mutex>
+#include <queue>
+
+template<typename T>
+class BlockingQueue {
+    std::queue<T> queue_;
+    std::size_t capacity_;
+    std::mutex mutex_;
+    std::condition_variable notEmpty_;
+    std::condition_variable notFull_;
+
+public:
+    explicit BlockingQueue(std::size_t capacity)
+        : capacity_(capacity) {}
+
+    void push(T value) {
+        std::unique_lock lock(mutex_);
+
+        notFull_.wait(lock, [this] {
+            return queue_.size() < capacity_;
+        });
+
+        queue_.push(std::move(value));
+
+        lock.unlock();
+        notEmpty_.notify_one();
+    }
+
+    T pop() {
+        std::unique_lock lock(mutex_);
+
+        notEmpty_.wait(lock, [this] {
+            return !queue_.empty();
+        });
+
+        T value = std::move(queue_.front());
+        queue_.pop();
+
+        lock.unlock();
+        notFull_.notify_one();
+        return value;
+    }
+};
+
+Usage:
+
+BlockingQueue<int> queue(5);
+
+std::thread producer([&] {
+    for (int i = 0; i < 10; ++i) {
+        queue.push(i);
+    }
+});
+
+std::thread consumer([&] {
+    for (int i = 0; i < 10; ++i) {
+        std::cout << queue.pop() << '\n';
+    }
+});
+
+producer.join();
+consumer.join();
+
+────────────────────
+
+11. Lock types
+
+Normal mutex
+
+std::mutex mutex;
+std::lock_guard lock(mutex);
+
+A normal mutex is not reentrant. Locking it twice from the same thread is invalid and may deadlock.
+
+Reentrant lock
+
+std::recursive_mutex mutex;
+std::lock_guard lock(mutex);
+
+Use only when recursive locking is genuinely required. Regular  std::mutex  usually produces clearer designs.
+
+Manual/flexible lock management
+
+std::unique_lock lock(mutex);
+
+lock.unlock();
+// Unprotected work
+lock.lock();
+
+ std::unique_lock  supports deferred locking, unlocking, moving, condition variables, and timed mutexes.
+
+Try-lock
+
+std::mutex mutex;
+
+if (mutex.try_lock()) {
+    try {
+        // Critical section
+    } catch (...) {
+        mutex.unlock();
+        throw;
+    }
+    mutex.unlock();
+}
+
+Prefer RAII after acquisition:
+
+if (mutex.try_lock()) {
+    std::lock_guard lock(mutex, std::adopt_lock);
+    // Automatically unlocked
+}
+
+Timed lock
+
+#include <chrono>
+#include <mutex>
+
+std::timed_mutex mutex;
+
+if (mutex.try_lock_for(std::chrono::seconds(2))) {
+    std::lock_guard lock(mutex, std::adopt_lock);
+    // Critical section
+} else {
+    std::cout << "Could not acquire lock\n";
+}
+
+Locking multiple mutexes safely
+
+std::scoped_lock lock(mutex1, mutex2);
+
+ std::scoped_lock  uses deadlock-avoidance logic when acquiring multiple mutexes.
+
+────────────────────
+
+12. Reader-writer lock
+
+Use  std::shared_mutex :
+
+#include <mutex>
+#include <shared_mutex>
+
+class SharedValue {
+    int value_ = 0;
+    mutable std::shared_mutex mutex_;
+
+public:
+    int read() const {
+        std::shared_lock lock(mutex_);
+        return value_;
+    }
+
+    void write(int value) {
+        std::unique_lock lock(mutex_);
+        value_ = value;
+    }
+};
+
+•  std::shared_lock : multiple readers may hold it.
+•  std::unique_lock : one exclusive writer.
+• Fairness and writer preference are implementation-dependent.
+
+────────────────────
+
+13. Semaphores
+
+C++20 supplies  <semaphore> .
+
+Binary semaphore
+
+#include <semaphore>
+
+std::binary_semaphore semaphore(1);
+
+void criticalSection() {
+    semaphore.acquire();
+
+    try {
+        // Protected operation
+    } catch (...) {
+        semaphore.release();
+        throw;
+    }
+
+    semaphore.release();
+}
+
+A mutex is normally preferable for mutual exclusion because mutex ownership is enforced.
+
+Counting semaphore
+
+#include <chrono>
+#include <semaphore>
+#include <thread>
+
+std::counting_semaphore<3> permits(3);
+
+void useResource() {
+    permits.acquire();
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    permits.release();
+}
+
+At most three threads may pass  acquire()  simultaneously.
+
+ release()  without a matching  acquire()  is permitted only while the count stays within the semaphore's maximum. Exceeding its maximum produces undefined behavior.
+
+RAII permit guard
+
+C++ semaphores do not provide a standard guard, but one is easy to create:
+
+template<typename Semaphore>
+class PermitGuard {
+    Semaphore& semaphore_;
+
+public:
+    explicit PermitGuard(Semaphore& semaphore)
+        : semaphore_(semaphore) {
+        semaphore_.acquire();
+    }
+
+    ~PermitGuard() {
+        semaphore_.release();
+    }
+
+    PermitGuard(const PermitGuard&) = delete;
+    PermitGuard& operator=(const PermitGuard&) = delete;
+};
+
+────────────────────
+
+14. Barrier
+
+C++20 has a direct equivalent:
+
+#include <barrier>
+#include <iostream>
+#include <thread>
+#include <vector>
+
+int main() {
+    constexpr int workerCount = 5;
+    std::barrier barrier(workerCount);
+
+    std::vector<std::thread> workers;
+
+    for (int i = 0; i < workerCount; ++i) {
+        workers.emplace_back([&, i] {
+            std::cout << i << " completed phase 1\n";
+            barrier.arrive_and_wait();
+
+            std::cout << i << " started phase 2\n";
+            barrier.arrive_and_wait();
+
+            std::cout << i << " started phase 3\n";
+        });
+    }
+
+    for (auto& worker : workers) {
+        worker.join();
+    }
+}
+
+Unlike  std::latch ,  std::barrier  is reusable across phases.
+
+────────────────────
+
+15. Executors and thread pools
+
+The C++20/23 standard library has no direct equivalent of Java's  ExecutorService ,  ScheduledExecutorService , or  ThreadPoolExecutor .
+
+Common options are:
+
+• Boost.Asio  thread_pool 
+• oneTBB
+• Folly
+• A custom queue + worker threads
+• C++26 execution facilities, where supported
+
+Example using Boost.Asio:
+
+#include <boost/asio/post.hpp>
+#include <boost/asio/thread_pool.hpp>
+#include <iostream>
+
+int main() {
+    boost::asio::thread_pool pool(4);
+
+    for (int i = 0; i < 10; ++i) {
+        boost::asio::post(pool, [i] {
+            std::cout << "Task " << i << '\n';
+        });
+    }
+
+    pool.join();
+}
+
+Approximate mappings:
+
+┌─────────────────────────┬──────────────────────────────────────────────────────────┐
+│ Java executor operation │ Typical C++ implementation                               │
+├─────────────────────────┼──────────────────────────────────────────────────────────┤
+│ execute(task)           │ Queue a void callable                                    │
+├─────────────────────────┼──────────────────────────────────────────────────────────┤
+│ submit(task)            │ Queue a std::packaged_task, return its future            │
+├─────────────────────────┼──────────────────────────────────────────────────────────┤
+│ shutdown()              │ Stop accepting work, drain queue, join workers           │
+├─────────────────────────┼──────────────────────────────────────────────────────────┤
+│ shutdownNow()           │ Request cooperative cancellation and discard queued work │
+├─────────────────────────┼──────────────────────────────────────────────────────────┤
+│ invokeAll()             │ Submit multiple tasks, call get() on every future        │
+├─────────────────────────┼──────────────────────────────────────────────────────────┤
+│ Fixed pool              │ Fixed collection of worker threads                       │
+├─────────────────────────┼──────────────────────────────────────────────────────────┤
+│ Cached pool             │ Dynamically sized custom/library pool                    │
+├─────────────────────────┼──────────────────────────────────────────────────────────┤
+│ Scheduled executor      │ Timer/event-loop library such as Boost.Asio              │
+└─────────────────────────┴──────────────────────────────────────────────────────────┘
+
+C++ cannot safely kill running worker threads. Immediate shutdown must use cooperative cancellation.
+
+────────────────────
+
+16. Scheduled execution
+
+Run once after a delay
+
+std::jthread scheduled([] {
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    std::cout << "Executed later\n";
+});
+
+For many scheduled tasks, use Boost.Asio timers rather than creating one sleeping thread per task.
+
+Fixed delay
+
+std::jthread worker([](std::stop_token token) {
+    while (!token.stop_requested()) {
+        runTask();
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+    }
+});
+
+The delay begins after  runTask()  finishes.
+
+Fixed rate
+
+std::jthread worker([](std::stop_token token) {
+    using clock = std::chrono::steady_clock;
+    auto next = clock::now();
+
+    while (!token.stop_requested()) {
+        next += std::chrono::seconds(2);
+        runTask();
+        std::this_thread::sleep_until(next);
+    }
+});
+
+This targets fixed start times. If execution takes too long, the schedule falls behind; overlapping requires explicitly dispatching each invocation to separate workers.
+
+────────────────────
+
+17. Concurrent collections
+
+The standard C++ library does not provide direct equivalents of most Java concurrent collections.
+
+ConcurrentHashMap
+
+Typical implementation:
+
+#include <shared_mutex>
+#include <unordered_map>
+
+template<typename Key, typename Value>
+class ConcurrentMap {
+    std::unordered_map<Key, Value> map_;
+    mutable std::shared_mutex mutex_;
+
+public:
+    void put(Key key, Value value) {
+        std::unique_lock lock(mutex_);
+        map_[std::move(key)] = std::move(value);
+    }
+
+    bool get(const Key& key, Value& result) const {
+        std::shared_lock lock(mutex_);
+
+        auto it = map_.find(key);
+        if (it == map_.end()) {
+            return false;
+        }
+
+        result = it->second;
+        return true;
+    }
+};
+
+This uses one read-write lock for the entire map. For high scalability, use:
+
+•  oneapi::tbb::concurrent_hash_map 
+•  folly::ConcurrentHashMap 
+• A sharded map with multiple mutexes
+
+Copy-on-write list
+
+Use an immutable snapshot through  shared_ptr :
+
+#include <atomic>
+#include <memory>
+#include <vector>
+
+class CopyOnWriteList {
+    std::atomic<std::shared_ptr<const std::vector<int>>> data_{
+        std::make_shared<const std::vector<int>>()
+    };
+
+public:
+    void add(int value) {
+        auto oldData = data_.load();
+
+        while (true) {
+            auto copy = std::make_shared<std::vector<int>>(*oldData);
+            copy->push_back(value);
+
+            std::shared_ptr<const std::vector<int>> newData = copy;
+
+            if (data_.compare_exchange_weak(oldData, newData)) {
+                return;
+            }
+        }
+    }
+
+    auto snapshot() const {
+        return data_.load();
+    }
+};
+
+Readers retain a stable snapshot. Writes copy the entire vector.
+
+Concurrent queue
+
+There is no standard lock-free concurrent queue. Use:
+
+•  oneapi::tbb::concurrent_queue 
+•  boost::lockfree::queue 
+• Folly queues
+• A mutex-protected  std::queue 
+• The blocking queue implementation shown earlier
+
+Implementing a lock-free linked queue manually is difficult because correct memory reclamation requires techniques such as hazard pointers or epoch-based reclamation.
+
+Priority blocking queue
+
+Combine:
+
+std::priority_queue<T>
+std::mutex
+std::condition_variable
+
+Direct hand-off / synchronous queue
+
+This is usually implemented using a mutex, condition variables, and one optional value. There is no direct standard class.
+
+Iterator behavior
+
+C++ generally does not define Java-style fail-fast iterators. Concurrent modification of a standard container without synchronization is usually a data race and undefined behavior, not a guaranteed exception.
+
+Use one of these strategies:
+
+• Hold a lock during iteration.
+• Copy a snapshot while locked, then iterate over the copy.
+• Use an immutable copy-on-write snapshot.
+• Use a concurrent container with documented iteration semantics.
+
+────────────────────
+
+18. Futures
+
+ std::async 
+
+auto future = std::async(std::launch::async, [] {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    return 42;
+});
+
+std::cout << future.get() << '\n';
+
+Check completion
+
+using namespace std::chrono_literals;
+
+if (future.wait_for(0ms) == std::future_status::ready) {
+    std::cout << "Ready\n";
+}
+
+Timeout
+
+if (future.wait_for(std::chrono::seconds(2))
+        == std::future_status::ready) {
+    std::cout << future.get();
+} else {
+    std::cout << "Timed out\n";
+}
+
+A timeout does not cancel the underlying computation.
+
+ std::packaged_task 
+
+This separates task creation from thread execution:
+
+std::packaged_task<int()> task([] {
+    return 10 + 20;
+});
+
+std::future<int> result = task.get_future();
+std::thread worker(std::move(task));
+
+std::cout << result.get() << '\n';
+worker.join();
+
+ std::promise 
+
+Use a promise when code manually produces a result:
+
+std::promise<std::string> promise;
+std::future<std::string> future = promise.get_future();
+
+std::thread producer([promise = std::move(promise)]() mutable {
+    promise.set_value("Completed");
+});
+
+std::cout << future.get() << '\n';
+producer.join();
+
+Use  set_exception()  to propagate failure.
+
+Shared future
+
+A normal  std::future  supports only one  get() . Use  std::shared_future  when multiple consumers need the result:
+
+std::shared_future<int> result =
+    std::async(std::launch::async, [] { return 42; }).share();
+
+────────────────────
+
+19. CompletableFuture equivalent
+
+Standard  std::future  does not support:
+
+•  thenApply 
+•  thenCombine 
+•  exceptionally 
+•  allOf 
+•  anyOf 
+• Continuation callbacks
+
+There is therefore no direct standard C++20 equivalent to  CompletableFuture .
+
+Libraries providing composable asynchronous operations include:
+
+• Boost.Asio
+• Folly Futures
+• Qt  QFuture 
+• HPX futures
+• oneTBB flow graph
+• C++20 coroutines with an asynchronous runtime
+
+A basic chain can be approximated with another async task:
+
+auto first = std::async(std::launch::async, [] {
+    return std::string("Hello");
+});
+
+auto second = std::async(
+    std::launch::async,
+    [future = std::move(first)]() mutable {
+        return future.get() + " World";
+    }
+);
+
+std::cout << second.get() << '\n';
+
+This works, but the second task blocks a thread while waiting. A proper continuation-aware runtime avoids that inefficiency.
+
+────────────────────
+
+20. Most important C++ differences
+
+1. Prefer  std::jthread  over  std::thread  for automatic joining and cancellation support.
+2. C++  volatile  is not a synchronization mechanism; use  std::atomic .
+3. An exception escaping a thread calls  std::terminate() .
+4. Concurrent unsynchronized container access causes undefined behavior rather than a reliable exception.
+5. Standard C++20 has futures but no  CompletableFuture -style continuations.
+6. Standard C++20 has no general executor or thread-pool API.
+7. Use RAII lock wrappers instead of manually calling  lock()  and  unlock() .
+8. Cancellation is cooperative; never forcibly terminate threads.
