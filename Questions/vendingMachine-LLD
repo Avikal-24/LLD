@@ -25,14 +25,38 @@ IMPLEMENTED
 - state design for various states of vending machine
 - strategy design for payment strategies
 - chain of responsibility for BalancePaymentFetcher
+- observer design for state-change notifications
+
 
 CAN BE IMPLEMENTED
 - factory design for product creation
-- observer design for state-change notifications
 - singleton pattern for hardware management
 
 */
 
+class Observer
+{
+    public:
+        virtual void notify(string logger) = 0 ;
+};
+
+class Observable
+{
+    public:
+        virtual void addObserver(Observer*newObserver) = 0 ;
+        virtual void removeObserver(Observer*newObserver) = 0 ;
+        virtual void broadcast() = 0 ;
+};
+
+class DisplayScreen : public Observer
+{
+    private:
+    public:
+        void notify(string text) override
+        {
+            cout<<"On your screens: "<<text<<endl ;
+        }
+};
 
 class Product
 {
@@ -317,7 +341,7 @@ class PaymentProcessor
         }
 };
 
-class VendingMachine
+class VendingMachine : public Observable
 {
     private:
         PaymentProcessor *paymentProcessor = nullptr;
@@ -332,6 +356,8 @@ class VendingMachine
         int bill = 0 ;
         VendingMachineSlot* selectedSlot = nullptr ; 
         
+        vector<Observer*>observers; 
+        
     public:
         VendingMachine()
         {
@@ -344,8 +370,24 @@ class VendingMachine
             paymentState->SetNextState(dispenseState) ;
             dispenseState->SetNextState(selectionState) ;
             
+            observers.push_back( new DisplayScreen() ) ;
             
             currentState = selectionState ;
+        }
+        void addObserver(Observer* newObserver)
+        {
+            observers.push_back(newObserver);
+        }
+        void removeObserver(Observer* observer)
+        {
+            //
+        }
+        void broadcast()
+        {
+            for(auto currObserver:observers)
+            {
+                currObserver->notify("State changed") ;
+            }
         }
         void addSlot(VendingMachineSlot* slot)
         {
@@ -363,6 +405,7 @@ class VendingMachine
         void changeState(State* newState)
         {
             currentState = newState ;
+            broadcast() ;
         }
         
         void generateBill(string slotName)
