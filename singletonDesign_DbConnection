@@ -8,7 +8,10 @@ class SingletonDbConnection
         SingletonDbConnection() = default ;
     
     public:
-        
+                // Block copying and moving
+                    SingletonDbConnection(const AudioHardware&) = delete;
+                    SingletonDbConnection& operator=(const AudioHardware&) = delete;
+
             static SingletonDbConnection& getSingletonDbConnection()
             {
                 if(instance == nullptr)
