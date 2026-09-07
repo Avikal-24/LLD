@@ -9,16 +9,45 @@ LLD DESIGNS:
 - factory to create vehicles
 - strategy for payments
 - facade for parking management
+- Observer for notifications
 
 CAN BE INCLUDED
 - Singleton for single facade/lot instance.
-- Observer for display board
 
 */
 
 enum class VehicleSize
 {
   SMALL, MEDIUM, LARGE, NONE
+};
+
+class Observer
+{
+    public:
+        virtual void notify(string str) = 0 ;
+};
+class Observable
+{
+    private:
+    
+    public:
+        virtual void addObserver(Observer*observer) = 0 ;
+        virtual void removeObserver(Observer* observer) = 0 ;
+        virtual void notifyObservers(string msg) = 0 ;
+};
+class User : public Observer
+{
+    private:
+        string name ;
+    public:
+        User(string name)
+        {
+            this->name = name ;
+        }
+        void notify(string str) override
+        {
+            cout<<str<<endl ;
+        }
 };
 
 class IVehicle
@@ -150,7 +179,7 @@ class UpiPayment : public Payment
         }
 };
 
-class ParkingFacade
+class ParkingFacade : public Observable 
 {
     private:
         unordered_set<ParkingSlot*>freeSlots ;
@@ -159,11 +188,28 @@ class ParkingFacade
         unordered_map<IVehicle*,ParkingSlot*>vehicleSlotMap ;
         
         IBillCalculationStrategy* billCalculationStrategy = nullptr ;
+        
+        vector<Observer*>observers ;
     
     public:
         ParkingFacade()
         {
             billCalculationStrategy = new WeekdayBillPaymentStrategy() ;
+        }
+        void addObserver(Observer* observer) override
+        {
+            observers.push_back(observer) ;
+        }
+        void removeObserver(Observer* observer) override
+        {
+            //
+        }
+        void notifyObservers(string str)
+        {
+            for(auto observer:observers)
+            {
+                observer->notify(str) ;
+            }
         }
         void addFreeSlot(VehicleSize size)
         {
@@ -203,6 +249,7 @@ class ParkingFacade
         void changeBillCalculationStrategy(IBillCalculationStrategy* newStrategy )
         {
             billCalculationStrategy = newStrategy ;
+            notifyObservers("Strategy has been changed") ;
         }
         ParkingSlot* findFreeSlot(VehicleSize size)
         {
