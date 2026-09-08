@@ -1,0 +1,82 @@
+#include<bits/stdc++.h>
+using namespace std;
+
+// BUILDER DESIGN PATTERN
+
+class HttpRequestBinder
+{
+    private:
+        string httpMethod ;
+        string baseUrl ;
+        string queryParam ;
+        string bodyPayload ;
+        int timeout ;
+        
+        HttpRequestBinder(string httpMethod, string baseUrl, string queryParam, string bodyPayload, int timeout)
+        {
+            this->httpMethod = httpMethod ;
+            this->baseUrl = baseUrl ;
+            this->queryParam = queryParam ;
+            this->bodyPayload = bodyPayload ;
+            this->timeout = timeout ;
+        }
+    
+    public:
+        class HttpRequestBinderBuilder
+        {
+            private:
+            
+                string httpMethod = "GET" ;
+                string baseUrl = "/users" ;
+                string queryParam = "?key=value" ;
+                string bodyPayload = "string" ;
+                int timeout = 10 ; 
+            
+            public:
+            
+                HttpRequestBinderBuilder() = default ;
+                
+                HttpRequestBinderBuilder& setHttpMethod(string s)
+                {
+                    httpMethod = s ;
+                    return *this ;
+                }
+                HttpRequestBinderBuilder& setbaseUrl(string s)
+                {
+                    baseUrl = s;
+                    return *this ;
+                }
+                HttpRequestBinderBuilder& setQueryParam(string s)
+                {
+                    queryParam = s;
+                    return *this ;
+                }
+                HttpRequestBinderBuilder& setBodyPayload(string s)
+                {
+                    bodyPayload = s;
+                    return *this ;
+                }
+                HttpRequestBinderBuilder& setTimeout(int s)
+                {
+                    timeout = s;
+                    return *this ;
+                }
+                HttpRequestBinder* build()
+                {
+                    return new HttpRequestBinder(httpMethod,baseUrl,queryParam,bodyPayload,timeout) ;
+                }
+            
+        };
+        void print()
+        {
+            cout<<httpMethod<<endl<<bodyPayload<<endl<<queryParam<<endl<<timeout<<endl ;
+        }
+    
+};
+
+int main()
+{
+    HttpRequestBinder *binder = HttpRequestBinder::HttpRequestBinderBuilder().setTimeout(100).setBodyPayload("body").setQueryParam("query").build() ;
+    binder->print() ;
+    return 0 ;
+}
