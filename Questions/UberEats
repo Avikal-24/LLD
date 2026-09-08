@@ -1,0 +1,338 @@
+
+#include <bits/stdc++.h>
+using namespace std ;
+
+/*
+
+In the Uber Eats / zomato/swiggy marketplace, the final price of an order 
+is rarely just the sum of the menu items. It is a dynamic calculation involving:
+
+* **Item Customizations:** Extra toppings, size upgrades.
+* **Marketplace Dynamics:** Surge pricing during peak hours or bad weather.
+* **Promotions:** Percentage discounts, "Buy 1 Get 1 Free" (BOGO).
+* **Membership Benefits:** Uber One subscribers get 5% off orders.
+
+*/
+
+
+/*
+LLD DESIGNS
+- decorator design for toppings
+- strategy design for peak-hour calculation
+- state design for user states
+        - selection states
+        - dynamics calculation state
+        - promotions state
+        -membership benefit state
+        -payment state
+- facade for uber app
+- chain of resp. for the complete flow
+
+OPTIONAL
+- factory design for promotions
+- observer design to notify the user 
+
+*/
+
+
+class Item ;
+class Cart ;
+class UberEats ;
+
+class Item
+{
+    private:
+        string name ;
+        int price; 
+        
+    public:
+        Item(string name, int price)
+        {
+            this->name=name ;this->price=price; 
+        }
+        string getName() { return name ; }
+        int getPrice() { return price ; }
+        void setName(string newName) { name=newName ; }
+        void setPrice(int newPrice) { price = newPrice ; }
+};
+
+class ItemDecorator
+{
+    public:
+        virtual void addFeature() = 0 ;
+};
+
+class CheeseDecorator : public ItemDecorator
+{
+    private:
+        Item* item ;
+    public:
+        CheeseDecorator(Item* currItem)
+        {
+            this->item=currItem ;
+        }
+        void addFeature() override
+        {
+            cout<<"adding cheese and updating cost" ;
+            item->setPrice(item->getPrice() + 50 ) ;   // price of cheese
+            item->setName(item->getName() + "Cheesy") ; 
+        }
+};
+
+class IDynamicsCalculationStrategy
+{
+    public:
+        virtual int getMultiplier() = 0 ;
+};
+
+class WeekdayCalculationStrategy : public IDynamicsCalculationStrategy
+{
+    public:
+        int getMultiplier() override
+        {
+            return 2 ;
+        }
+};
+
+// similarly for rainy weather or weekend or any other attribute.
+
+class State 
+{
+    protected:
+        State* nextState = nullptr; 
+    public:
+        virtual void setNextState(State* state)  = 0 ;
+        virtual void execute(UberEats* app) = 0 ;
+        State* getNextState()
+        {
+            return nextState ;
+        }
+};
+
+class SelectionState : public State
+{
+    public:
+        SelectionState() = default ;
+        void setNextState(State*nextState)
+        {
+            this->nextState = nextState ;
+        }
+        void execute(UberEats*app) override;
+
+};
+
+class DynamicsCalculationState : public State
+{
+    private:
+    
+        IDynamicsCalculationStrategy* currStrategy = nullptr ;
+        
+    public:
+        DynamicsCalculationState()
+        {
+            currStrategy = new WeekdayCalculationStrategy() ;
+        }
+        void setNextState(State*nextState)
+        {
+            this->nextState = nextState ;
+        }
+        void changeStrategy(IDynamicsCalculationStrategy* newStrategy)
+        {
+            currStrategy = newStrategy ;
+        }
+        void execute(UberEats* app) override ;
+};
+
+
+class PromotionStrategy
+{
+    public:
+        virtual void applyDiscount(UberEats* app) =0  ;
+};
+
+class PointsPromotionStrategy : public PromotionStrategy
+{
+    public:
+        void applyDiscount(UberEats* app) override ;
+};
+// we can add more such strategies similarly
+
+class PromotionsState : public State
+{
+    private:
+    
+    PromotionStrategy * currStrategy = nullptr ;
+    
+    public:
+        PromotionsState() 
+        {
+            currStrategy = new PointsPromotionStrategy() ;
+        }
+        void setNextState(State*nextState)
+        {
+            this->nextState = nextState ;
+        }
+        void execute(UberEats* app) override ;
+};
+
+class MembershipBenefitState : public State
+{
+    public:
+        MembershipBenefitState() = default ;
+        void setNextState(State*nextState)
+        {
+            this->nextState = nextState ;
+        }
+        void execute(UberEats* app) override ;
+};
+
+class Cart
+{
+    private:
+        vector<Item*>items ;
+    
+    public:
+        int getTotal()
+        {
+            int total=0 ;
+            for(auto currItem:items)
+            {
+                total == currItem->getPrice() ;
+            }
+            return total ;
+        }
+        void addToCart(Item*newItem)
+        {
+            items.push_back(newItem) ;
+        }
+};
+
+class UberEats // facade class
+{
+    private:
+        Cart* cart = nullptr;
+        unordered_map<Item*,int>menu ;
+        
+        int bill = 0 ;
+        
+        State*currState  ;
+        State* selectionState ;
+        State* dynamicsCalculationState  ;
+        State* promotionsState ;
+        State* membershipBenefitState ;
+    
+    public:
+        UberEats(unordered_map<Item*,int>&menu)
+        {
+            cart= new Cart() ;
+            this->menu = menu ;
+            
+            dynamicsCalculationState = new DynamicsCalculationState() ;
+            promotionsState = new PromotionsState() ; 
+            membershipBenefitState = new MembershipBenefitState() ;
+            selectionState = new SelectionState() ; 
+            
+            selectionState->setNextState(dynamicsCalculationState) ;
+            dynamicsCalculationState->setNextState(promotionsState) ;
+            promotionsState->setNextState(membershipBenefitState) ;
+            
+            currState= selectionState ; 
+        }
+        void executeState()
+        {
+            currState->execute(this) ;
+        }
+        void updateCart(Item*item)
+        {
+            cart->addToCart(item) ;
+        }
+        void changeState()
+        {
+            if(currState->getNextState() ==nullptr )
+            {
+                cout<<"ERROR" ;
+            }
+            currState = currState->getNextState() ;
+        }
+        void updateBill()
+        {
+            bill = cart->getTotal() ;
+        }
+        void updateBill(int newBill)
+        {
+            bill = newBill ;
+        }
+        int getBill()
+        {
+            return bill ;
+        }
+};
+
+
+void SelectionState::execute(UberEats* app)
+{
+    // logic to choose from menu.
+    
+    Item * selectedItem ;
+    app->updateCart(selectedItem) ;
+    
+    
+    // after all the selections. I can update the bill.
+    
+}
+
+void DynamicsCalculationState::execute(UberEats* app)
+{
+    int multiplier = currStrategy->getMultiplier() ;
+    cout<<"multiplier: "<<multiplier ;
+    
+    int currBill = app->getBill() ;
+    currBill*=multiplier ; 
+    app->updateBill(currBill) ;
+}
+
+void PromotionsState::execute(UberEats* app)
+{
+    currStrategy->applyDiscount(app) ;
+}
+
+void MembershipBenefitState::execute(UberEats* app)
+{
+    // are you uber one member?
+    // No??
+    // do nothing
+    
+    // yess??
+    
+    int currBill = app->getBill() ;
+    currBill -= 10 ; 
+    app->updateBill(currBill) ;
+}
+
+void PointsPromotionStrategy::applyDiscount(UberEats* app)
+{
+    int currBill = app->getBill() ;
+    
+    // hardcoding as of now
+    currBill -= 100 ;
+    
+    app->updateBill(currBill) ;
+}
+
+int main()
+{
+    unordered_map<Item*,int>menu ;
+    // make the menu
+    
+    
+    UberEats *app= new UberEats(menu) ;
+    app->executeState(); 
+    app->changeState() ;
+    app->executeState();
+    app->changeState() ;
+    app->executeState();
+    app->changeState() ;
+    app->executeState();
+    
+    return 0;
+}
