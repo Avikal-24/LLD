@@ -1,0 +1,81 @@
+#include<bits/stdc++.h>
+using namespace std;
+
+// COMPOSITE PATTERN
+
+class IOrderable
+{
+    public:
+        virtual int getPrice() = 0 ;
+};
+
+class CompositeProductBundle : public IOrderable
+{
+    protected:
+        vector<IOrderable*>things; 
+        
+    public:
+        void addThing(IOrderable* newThing)
+        {
+            things.push_back(newThing) ;
+        }
+        int getPrice() override
+        {
+            int total = 0 ;
+            for(auto curr:things)
+            {
+                total += curr->getPrice() ;
+            }
+            return total ;
+        }
+};
+
+class Product : public IOrderable
+{
+    private:
+        int price ;
+        
+    public:
+        Product(int price)
+        {
+            this->price = price ;
+        }
+        int getPrice() override
+        {
+            return price ;
+        }
+    
+};
+
+class Hamper : public CompositeProductBundle
+{
+    public:
+        Hamper() = default ;
+};
+
+class Gift : public CompositeProductBundle
+{
+    public:
+        Gift() = default ;
+};
+
+int main()
+{
+    IOrderable *a= new Product(10) ;
+    IOrderable *b= new Product(15) ;
+    IOrderable *c= new Product(20) ;
+    IOrderable *d= new Product(30) ;
+    
+    CompositeProductBundle* e= new Hamper() ;
+    e->addThing(a) ;
+    e->addThing(b) ;
+    e->addThing(c) ;
+    
+    CompositeProductBundle* f =new Gift() ;
+    f->addThing(e) ;
+    f->addThing(d) ;
+    
+    cout<<f->getPrice() ;
+    
+    return 0 ;
+}
