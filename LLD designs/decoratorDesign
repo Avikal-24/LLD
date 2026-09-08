@@ -1,0 +1,76 @@
+#include<bits/stdc++.h>
+using namespace std;
+
+// DECORATOR PATTERN
+
+class IDataStream
+{
+     public:
+        virtual string getText() = 0 ; 
+};
+
+class RawStream : public IDataStream
+{
+    private:
+        string text ;
+    
+    public:
+        RawStream(string text)
+        {
+            this->text = "Raw[" + text + "]" ;
+        }
+        
+        string getText() override 
+        { 
+            return text ; 
+        }
+        
+};
+
+class Compressed : public IDataStream
+{
+    private:
+        IDataStream* stream = nullptr ;
+        string text ;
+    
+    public:
+        Compressed(IDataStream* dataStream)
+        {
+            stream = dataStream ;
+        }
+        
+        string getText() override 
+        { 
+            return "Compressed[" + stream->getText() + "]" ; 
+        }
+};
+
+class Encrypted : public IDataStream
+{
+    private:
+    string text ;
+        IDataStream* stream = nullptr ;
+    
+    public:
+        Encrypted(IDataStream* dataStream)
+        {
+            stream = dataStream ;
+        }
+        
+        string getText() override 
+        { 
+            return "Encrypted[" + stream->getText() + "]" ;
+        }
+};
+
+int main()
+{
+    IDataStream* myStream= new RawStream("helloworld") ;
+    IDataStream* compressedStream = new Compressed(myStream) ;
+    IDataStream* encryptedStream = new Encrypted(compressedStream) ;
+    IDataStream* finalstream = new Compressed(encryptedStream) ;
+    
+    cout<<finalstream->getText() ;
+    
+    return 0 ;
+}
