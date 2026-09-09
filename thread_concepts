@@ -27,8 +27,10 @@ class Bus
         void bookSeat(int x)
         {
             unique_lock<shared_mutex>uniqueLock(mu) ;
-            
             seats.push_back(x) ;
+
+            // making a thread sleep
+            this_thread::sleep_for(chrono::microseconds(1000) ) ;
         }
 };
 
@@ -41,6 +43,9 @@ int main()
     thread t2(&Bus::bookSeat,myBus,3) ;
     thread t1(&Bus::showSeats,myBus) ;
 
+
+    // to get thread's ID
+    cout<<this_thread::get_id()<<endl ;
 
     t1.join() ; 
     t2.join() ;
