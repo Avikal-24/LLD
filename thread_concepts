@@ -5,20 +5,44 @@ using namespace std ;
 // shared lock and unique lock
 // shared mutex
 
+shared_mutex mu ;
+condition_variable_any cv ;
+
+// Global variable (accessible everywhere without capture)
+int global_counter = 100 ;
+
 class Bus
 {
     private:
         vector<int>seats ;
-        shared_mutex mu ;
+        int bus_id = 101 ;
+        
+        // Predicate function: Returns true when seats vector is not empty
+        bool hasSeats()  
+        {
+            return !seats.empty() ;
+        }
         
     public:
         Bus() = default ;
+        
         void showSeats()
         {
             shared_lock<shared_mutex>sharedLock(mu) ;
             
+            cout<<"reader thread waiting for someone to grab seat, if the bus is empty\n" ;
+            
+            
+            // CV stops execution, releases 'sharedLock', and sleeps until notified.
+            // When notified, it re-acquires 'sharedLock' and re-checks hasSeats().
+            // LAMBDA function 
+            cv.wait(sharedLock, [this]() { return hasSeats() ; } ) ;
+            
+            cout<<"reader thread here, now atleast someone has a seat\n" ;
+            
             for(auto it: seats) cout<<it<<" " ;
         }
+        
         void bookSeat(int x)
         {
             unique_lock<shared_mutex>uniqueLock(mu) ;
@@ -26,6 +50,91 @@ class Bus
 
             // making a thread sleep
             this_thread::sleep_for(chrono::microseconds(1000) ) ;
+            
+            // to tell or notify this thing to all the waiting threads
+            cv.notify_all() ;
+        }
+        
+        // LAMBDA FUNCTIONS INSIDE CONDITION VARIABLE
+        void demonstrateCaptures()
+        {
+            int local_val = 10 ;
+            string status = "Pending" ;
+
+            // =========================================================================
+            // COMPREHENSIVE GUIDE TO LAMBDA CAPTURE CLAUSES []
+            // =========================================================================
+
+            // 1. [this] -> CAPTURE CLASS INSTANCE POINTER
+            // - Used inside class member functions.
+            // - Gives access to member variables (seats, bus_id) and member functions.
+            auto capThis = [this]() {
+                return !seats.empty() && bus_id == 101 ;
+            };
+
+            // 2. [var] -> CAPTURE SPECIFIC VARIABLE BY VALUE (READ-ONLY COPY)
+            // - Makes a copy of 'local_val' at the moment the lambda is defined.
+            // - Changes to 'local_val' outside later will NOT affect this copy.
+            // - You cannot modify 'local_val' inside the lambda body.
+            auto capValue = [local_val]() {
+                return local_val + 5 ; // Read-only access
+            };
+
+            // 3. [&var] -> CAPTURE SPECIFIC VARIABLE BY REFERENCE (READ-WRITE)
+            // - Captures the live reference to 'status'.
+            // - If another thread or code modifies 'status', the lambda sees the live update.
+            // - The lambda can also modify 'status' directly!
+            auto capRef = [&status]() {
+                status = "Completed" ; // Directly modifies outer variable
+                return status == "Completed" ;
+            };
+
+            // 4. [=] -> CAPTURE ALL OUTER LOCAL VARIABLES BY VALUE
+            // - Automatically copies any local variable used inside the lambda body.
+            // - Inside member functions, it also implicitly captures 'this'.
+            auto capAllValue = [=]() {
+                return local_val > 0 && status == "Pending" ;
+            };
+
+            // 5. [&] -> CAPTURE ALL OUTER LOCAL VARIABLES BY REFERENCE
+            // - Automatically captures any outer variable used inside the body by reference.
+            // - Preferred for cv.wait() inside local functions when checking multiple live flags.
+            auto capAllRef = [&]() {
+                return local_val == 10 && !seats.empty() ;
+            };
+
+            // 6. [this, local_val, &status] -> MIXED EXPLICIT CAPTURES
+            // - Captures 'this' pointer, 'local_val' by value, and 'status' by reference.
+            auto capMixed = [this, local_val, &status]() {
+                return bus_id == 101 && local_val > 0 && status == "Pending" ;
+            };
+
+            // 7. [=, &status] -> DEFAULT BY VALUE, SPECIFIC EXCEPTIONS BY REFERENCE
+            // - Everything used is captured by value, EXCEPT 'status' which is captured by reference.
+            auto capMixedDefault1 = [=, &status]() {
+                status = "Updated" ; // Allowed because it's by reference
+                return local_val == 10 ;
+            };
+
+            // 8. [&, local_val] -> DEFAULT BY REFERENCE, SPECIFIC EXCEPTIONS BY VALUE
+            // - Everything used is captured by reference, EXCEPT 'local_val' which is copied.
+            auto capMixedDefault2 = [&, local_val]() {
+                return local_val == 10 && !seats.empty() ;
+            };
+
+            // 9. [] -> EMPTY CAPTURE
+            // - Cannot access any outer local variables or 'this'.
+            // - Can ONLY access parameters passed into (), global variables, or static variables.
+            auto capEmpty = []() {
+                return global_counter > 0 ; // Allowed because global_counter is global
+            };
+
+            // =========================================================================
+            // HOW THIS APPLIES TO CONDITION VARIABLES (cv.wait):
+            // =========================================================================
+            // Inside Class Methods:  cv.wait(lock, [this]() { return !seats.empty(); });
+            // Inside main() / Local: cv.wait(lock, [&flag]() { return flag == true; });
+            // =========================================================================
         }
 };
 
@@ -46,6 +155,13 @@ int main()
 
     t1.join() ; 
     t2.join() ;
+    
+    
+    cout<<"\n Bus is on its way\n" ;  
+    
+    
+    
+    cout<<"Bus has reached the destination" ;
     
     return 0;
 }
